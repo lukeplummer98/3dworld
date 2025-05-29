@@ -1,0 +1,10 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"command": "echo \"Open index.html in your browser to run the game.\"",
+			"label": "Run Web App",
+			"type": "shell"
+		}
+	]
+}

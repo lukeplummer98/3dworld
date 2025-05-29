@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Virtual World - Mobile First 3D Game</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="loadingScreen">
+        <div>Loading Virtual World...</div>
+        <div id="loadingProgress" style="width:0%"></div>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+    
+    <!-- UI Overlay -->
+    <div class="ui-overlay">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="currency-display">
+                <span id="currencyAmount">1000</span>
+            </div>
+            <div class="action-buttons-top">
+                <button class="action-btn" id="inventoryBtn">🎒</button>
+                <button class="action-btn" id="storeBtn">🛍️</button>
+                <button class="action-btn" id="mapBtn">🗺️</button>
+            </div>
+        </div>
+        
+        <!-- Mobile Controls -->
+        <div class="mobile-controls">
+            <div class="joystick-container" id="joystick">
+                <div class="joystick-knob" id="joystickKnob"></div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="action-btn" id="jumpBtn">⬆️</button>
+            <button class="action-btn" id="interactBtn">✋</button>
+            <button class="action-btn" id="emoteBtn">😊</button>
+        </div>
+        
+        <!-- Chat -->
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages"></div>
+            <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." />
+        </div>
+        
+        <!-- Mini Map -->
+        <div class="mini-map">
+            <canvas class="map-canvas" id="mapCanvas"></canvas>
+        </div>
+        
+        <!-- Inventory Panel -->
+        <div class="inventory-panel" id="inventoryPanel">
+            <div class="inventory-header">
+                <span>Inventory</span>
+                <button class="close-btn" id="inventoryCloseBtn">✕</button>
+            </div>
+            <div class="inventory-grid" id="inventoryGrid"></div>
+        </div>
+        
+        <!-- Store Panel -->
+        <div class="store-panel" id="storePanel">
+            <button class="close-store" id="storeCloseBtn">✕</button>
+            <div class="store-header">✨ Virtual Store ✨</div>
+            <div class="store-categories">
+                <button class="category-btn active" data-category="all">All</button>
+                <button class="category-btn" data-category="clothes">Clothes</button>
+                <button class="category-btn" data-category="accessories">Accessories</button>
+                <button class="category-btn" data-category="emotes">Emotes</button>
+            </div>
+            <div class="store-content">
+                <div class="store-left">
+                    <div class="store-items" id="storeItems"></div>
+                </div>
+                <div class="store-right">
+                    <div class="preview-section">
+                        <div class="preview-title">Item Preview</div>
+                        <div class="character-preview">
+                            <canvas class="preview-canvas" id="previewCanvas"></canvas>
+                        </div>
+                        <div class="selected-item-info" id="selectedItemInfo" style="display: none;">
+                            <div class="selected-item-name" id="selectedItemName"></div>
+                            <div class="selected-item-price" id="selectedItemPrice"></div>
+                            <button class="buy-button" id="buyButton">Buy Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Emote Wheel -->
+        <div class="emote-wheel" id="emoteWheel">
+            <div class="emote-option" style="top: 0; left: 120px;" data-emote="wave">👋</div>
+            <div class="emote-option" style="top: 45px; left: 195px;" data-emote="laugh">😂</div>
+            <div class="emote-option" style="top: 120px; left: 240px;" data-emote="dance">🕺</div>
+            <div class="emote-option" style="top: 195px; left: 195px;" data-emote="heart">❤️</div>
+            <div class="emote-option" style="top: 240px; left: 120px;" data-emote="cry">😢</div>
+            <div class="emote-option" style="top: 195px; left: 45px;" data-emote="angry">😠</div>
+            <div class="emote-option" style="top: 120px; left: 0;" data-emote="thumbsup">👍</div>
+            <div class="emote-option" style="top: 45px; left: 45px;" data-emote="thinking">🤔</div>
+        </div>
+    </div>
+    
+    <!-- Babylon.js and dependencies -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    
+    <!-- Game modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+/* Reset and Base Styles */
+html, body { 
+    width: 100%; 
+    height: 100%; 
+    margin: 0; 
+    padding: 0; 
+    overflow: hidden; 
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    touch-action: none;
+    user-select: none;
+}
+
+#renderCanvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    background: #aeeaff;
+}
+
+/* Loading Screen */
+#loadingScreen {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #222;
+    color: #fff;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#loadingProgress {
+    width: 200px;
+    height: 8px;
+    background: #4af;
+    margin-top: 20px;
+    transition: width 0.3s;
+}
+
+/* UI Overlay */
+.ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.ui-overlay * {
+    pointer-events: auto;
+}
+
+/* Top Bar */
+.top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+
+.currency-display {
+    background: rgba(255,215,0,0.2);
+    border: 2px solid gold;
+    border-radius: 20px;
+    padding: 5px 15px;
+    color: gold;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.currency-display::before {
+    content: "💰";
+}
+
+.action-buttons-top {
+    display: flex;
+    gap: 10px;
+}
+
+/* Mobile Controls */
+.mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: none;
+}
+
+.joystick-container {
+    width: 120px;
+    height: 120px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    position: relative;
+}
+
+.joystick-knob {
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: none;
+}
+
+/* Action Buttons */
+.action-buttons {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-btn {
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:active {
+    transform: scale(0.9);
+    background: rgba(255,255,255,0.4);
+}
+
+/* Chat System */
+.chat-container {
+    position: absolute;
+    bottom: 150px;
+    left: 20px;
+    width: 300px;
+    max-width: calc(100% - 40px);
+}
+
+.chat-messages {
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.5);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.chat-message {
+    color: white;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.chat-input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.9);
+    font-size: 14px;
+}
+
+/* Mini Map */
+.mini-map {
+    position: absolute;
+    top: 80px;
+    right: 20px;
+    width: 150px;
+    height: 150px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.map-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Inventory */
+.inventory-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    height: 80%;
+    max-height: 500px;
+    background: rgba(0,0,0,0.9);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 20px;
+    display: none;
+}
+
+.inventory-header {
+    color: white;
+    font-size: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    max-height: calc(100% - 60px);
+}
+
+.inventory-slot {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inventory-slot:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
+
+/* Store UI */
+.store-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 900px;
+    height: 90%;
+    max-height: 700px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 3px solid #0f3460;
+    border-radius: 20px;
+    padding: 20px;
+    display: none;
+    overflow: hidden;
+}
+
+.store-header {
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.store-categories {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.category-btn {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    color: white;
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.category-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.category-btn.active {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: #667eea;
+}
+
+.store-content {
+    display: flex;
+    height: calc(100% - 100px);
+    gap: 20px;
+}
+
+.store-left {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.store-right {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.preview-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.preview-title {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.character-preview {
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(0,0,0,0.3);
+}
+
+.preview-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.selected-item-info {
+    color: white;
+    text-align: center;
+}
+
+.selected-item-name {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.selected-item-price {
+    color: gold;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.buy-button {
+    background: linear-gradient(135deg, #00c851, #007e33);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.buy-button:hover {
+    background: linear-gradient(135deg, #00ff66, #00c851);
+    transform: translateY(-2px);
+}
+
+.buy-button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.store-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 100%;
+    padding-right: 5px;
+}
+
+.store-item {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.store-item:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+}
+
+.store-item.selected {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.2);
+}
+
+.item-preview {
+    width: 100%;
+    height: 80px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    position: relative;
+}
+
+.color-swatch {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.3);
+    margin: 0 auto;
+}
+
+.item-name {
+    color: white;
+    font-size: 12px;
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+.item-price {
+    color: gold;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.close-store {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.close-store:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* Emote Wheel */
+.emote-wheel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 300px;
+    display: none;
+}
+
+.emote-option {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.emote-option:hover {
+    background: rgba(255,255,255,0.4);
+    transform: scale(1.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: block;
+    }
+    
+    .mini-map {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .chat-container {
+        width: 250px;
+    }
+}
