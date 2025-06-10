@@ -2,13 +2,10 @@
 export const CONFIG = {
     API_URL: 'https://api.example.com', // Replace with your API
     WS_URL: (function() {
-        // Use window.location to dynamically build the WebSocket URL
         let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         let host = window.location.hostname;
-        let port = window.location.port || '8081';
-        // If running on default HTTP/HTTPS port, use 8081 for WS
-        if (port === '' || port === '80' || port === '443') port = '8081';
-        return protocol + '//' + host + ':' + port;
+        let wsPort = '8081'; // Always use 8081 for WebSocket
+        return protocol + '//' + host + ':' + wsPort;
     })(),
     MOVEMENT_SPEED: 0.1,
     JUMP_FORCE: 0.2,

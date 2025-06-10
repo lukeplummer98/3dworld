@@ -31,6 +31,9 @@ export class VirtualWorldGame {
         this.isMobile = window.innerWidth <= CONFIG.MOBILE_THRESHOLD;
         this.playerTopId = 'default-blue';
         
+        // Environment options
+        this.useEditorScene = false; // Default to original environment
+        
         // Initialize
         this.init();
     }
@@ -41,23 +44,11 @@ export class VirtualWorldGame {
             
             // Create scene
             this.createScene();
-            this.updateLoadingProgress(20);
+            this.updateLoadingProgress(30);
             
             // Setup lighting
             this.setupLighting();
-            this.updateLoadingProgress(30);
-            
-            // Create environment
-            await this.createEnvironment();
-            this.updateLoadingProgress(50);
-            
-            // Create player
-            this.createPlayer();
             this.updateLoadingProgress(60);
-            
-            // Initialize managers
-            this.initializeManagers();
-            this.updateLoadingProgress(80);
             
             // Start render loop
             this.startRenderLoop();
@@ -69,10 +60,24 @@ export class VirtualWorldGame {
                 this.isMobile = window.innerWidth <= CONFIG.MOBILE_THRESHOLD;
             });
             
-            // Hide loading screen
+            // Show start options
             this.updateLoadingProgress(100);
             setTimeout(() => {
-                document.getElementById('loadingScreen').style.display = 'none';
+                const startOptions = document.getElementById('startOptions');
+                if (startOptions) {
+                    startOptions.style.display = 'block';
+                    
+                    // Add event listeners for start buttons
+                    document.getElementById('startOriginal').addEventListener('click', () => {
+                        this.useEditorScene = false;
+                        this.startGame();
+                    });
+                    
+                    document.getElementById('startEditor').addEventListener('click', () => {
+                        this.useEditorScene = true;
+                        this.startGame();
+                    });
+                }
             }, 500);
             
             // Make game globally accessible for debugging
@@ -121,7 +126,7 @@ export class VirtualWorldGame {
     }
     
     async createEnvironment() {
-        this.environment = new Environment(this.scene);
+        this.environment = new Environment(this.scene, this.useEditorScene);
         this.environment.setShadowGenerator(this.shadowGenerator);
         const collisionObjects = await this.environment.create();
         
@@ -173,16 +178,31 @@ export class VirtualWorldGame {
     initializeManagers() {
         // Input manager
         this.inputManager = new InputManager(this);
-        this.inputManager.setPlayer(this.player);
+        if (this.player) {
+            this.inputManager.setPlayer(this.player);
+        }
         
-        // Network manager
-        this.networkManager = new NetworkManager(CONFIG.WS_URL, this);
+        try {
+            // Network manager - wrap in try-catch in case the WebSocket URL is invalid
+            this.networkManager = new NetworkManager(CONFIG.WS_URL, this);
+        } catch (error) {
+            console.warn("Could not initialize network manager:", error);
+            this.addChatMessage('System', 'Playing in offline mode - multiplayer features disabled');
+        }
         
         // Emote manager
         this.emoteManager = new EmoteManager(this.scene);
         
         // Store manager
         this.storeManager = new StoreManager(this);
+        
+        // Set up environment toggle button
+        const toggleEnvBtn = document.getElementById('toggleEnvBtn');
+        if (toggleEnvBtn) {
+            toggleEnvBtn.addEventListener('click', () => {
+                this.toggleEnvironment();
+            });
+        }
     }
     
     startRenderLoop() {
@@ -202,10 +222,10 @@ export class VirtualWorldGame {
         // Update remote players
         this.players.forEach(player => player.update());
         
-        // Update managers
-        this.inputManager.update();
-        this.emoteManager.update();
-        this.storeManager.update();
+        // Update managers if they exist
+        if (this.inputManager) this.inputManager.update();
+        if (this.emoteManager) this.emoteManager.update();
+        if (this.storeManager) this.storeManager.update();
         
         // Send network updates
         if (this.networkManager && this.player) {
@@ -260,26 +280,32 @@ export class VirtualWorldGame {
             this.player.position.z + this.player.velocity.z
         );
         
-        // Check collisions
-        const collision = this.collisionManager.checkCollisions(newPosition);
-        
-        if (collision) {
-            const resolved = this.collisionManager.resolveCollision(
-                oldPosition, newPosition, collision, this.player.velocity
-            );
-            this.player.position = resolved.position;
-            this.player.velocity = resolved.velocity;
-            this.player.groundLevel = resolved.groundLevel;
-        } else {
-            this.player.position = newPosition;
+        // Check collisions if collision manager exists
+        if (this.collisionManager) {
+            const collision = this.collisionManager.checkCollisions(newPosition);
             
-            // Check if on elevated ground
-            const elevatedCheck = this.collisionManager.checkCollisions(newPosition);
-            if (elevatedCheck && elevatedCheck.onElevatedGround) {
-                this.player.groundLevel = elevatedCheck.height + CONFIG.PLAYER_HEIGHT;
+            if (collision) {
+                const resolved = this.collisionManager.resolveCollision(
+                    oldPosition, newPosition, collision, this.player.velocity
+                );
+                this.player.position = resolved.position;
+                this.player.velocity = resolved.velocity;
+                this.player.groundLevel = resolved.groundLevel;
             } else {
-                this.player.groundLevel = CONFIG.GROUND_LEVEL;
+                this.player.position = newPosition;
+                
+                // Check if on elevated ground
+                const elevatedCheck = this.collisionManager.checkCollisions(newPosition);
+                if (elevatedCheck && elevatedCheck.onElevatedGround) {
+                    this.player.groundLevel = elevatedCheck.height + CONFIG.PLAYER_HEIGHT;
+                } else {
+                    this.player.groundLevel = CONFIG.GROUND_LEVEL;
+                }
             }
+        } else {
+            // No collision manager, just update position
+            this.player.position = newPosition;
+            this.player.groundLevel = CONFIG.GROUND_LEVEL;
         }
         
         // Ground collision
@@ -469,6 +495,224 @@ export class VirtualWorldGame {
         const progressBar = document.getElementById('loadingProgress');
         if (progressBar) {
             progressBar.style.width = percentage + '%';
+        }
+   }
+    
+    // Method to switch environment type
+    async switchEnvironment(useEditorScene = true) {
+        this.useEditorScene = useEditorScene;
+        
+        // Clear existing environment
+        if (this.environment) {
+            // Clean up any resources if needed
+        }
+        
+        // Update loading progress
+        this.updateLoadingProgress(30);
+        
+        // Create new environment
+        await this.createEnvironment();
+        this.updateLoadingProgress(50);
+    }
+    
+    // Toggle between original environment and Babylon.js Editor scene
+    async toggleEnvironment() {
+        // Show loading screen
+        document.getElementById('loadingScreen').style.display = 'block';
+        this.updateLoadingProgress(10);
+        
+        // Toggle the environment flag
+        this.useEditorScene = !this.useEditorScene;
+
+        console.log(`Switching to ${this.useEditorScene ? 'Babylon.js Editor Scene' : 'Original Environment'}`);
+        
+        // Reset player position to a safe spot
+        if (this.player) {
+            this.player.position = new BABYLON.Vector3(0, 5, 0);
+            this.player.velocity = new BABYLON.Vector3(0, 0, 0);
+        }
+        
+        try {
+            // Dispose the current environment
+            if (this.environment) {
+                this.environment.dispose();
+            }
+            
+            // If we have existing collisions, clear them
+            if (this.collisionManager) {
+                // Clear existing collision objects
+                this.collisionManager.setCollisionObjects([]);
+            }
+            
+            // Create new environment
+            await this.createEnvironment();
+            this.updateLoadingProgress(90);
+            
+            // Use spawn point if available
+            if (this.player && this.useEditorScene && this.environment.getSpawnPoint()) {
+                const spawn = this.environment.getSpawnPoint();
+                this.player.position = spawn.position.clone();
+                // Make sure player is above ground
+                this.player.position.y += CONFIG.PLAYER_HEIGHT;
+            }
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 500);
+            
+            // Show temporary notification when environment changes
+            this.showEnvironmentChangeNotification(this.useEditorScene);
+            
+            console.log("Environment switched successfully");
+        } catch (error) {
+            console.error("Error switching environment:", error);
+            // Hide loading screen even if there was an error
+            document.getElementById('loadingScreen').style.display = 'none';
+        }
+    }
+    
+    // Show temporary notification when environment changes
+    showEnvironmentChangeNotification(isEditorScene) {
+        // Create a notification element
+        const notification = document.createElement('div');
+        notification.className = 'environment-notification';
+        notification.textContent = isEditorScene ? 
+            'Switched to Babylon.js Editor Scene' : 
+            'Switched to Original Environment';
+        
+        // Style the notification
+        notification.style.position = 'fixed';
+        notification.style.top = '20%';
+        notification.style.left = '50%';
+        notification.style.transform = 'translateX(-50%)';
+        notification.style.padding = '10px 20px';
+        notification.style.background = 'rgba(0, 0, 0, 0.7)';
+        notification.style.color = '#fff';
+        notification.style.borderRadius = '5px';
+        notification.style.zIndex = '1000';
+        notification.style.fontWeight = 'bold';
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.5s ease';
+        
+        document.body.appendChild(notification);
+        
+        // Show and hide with animation
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 500);
+            }, 3000);
+        }, 100);
+    }
+    
+    // Handle interactions with objects in the scene
+    handleInteraction(objectName) {
+        console.log(`Handling interaction with ${objectName}`);
+        
+        // Handle different types of interactive objects
+        const name = objectName.toLowerCase();
+        
+        if (name.includes('door')) {
+            // Handle door interaction
+            if (name.includes('store')) {
+                this.toggleStore();
+            } else {
+                console.log("This door doesn't lead anywhere yet.");
+                this.addChatMessage('Game', "This door doesn't lead anywhere yet.");
+            }
+        }
+        else if (name.includes('button')) {
+            // Handle button presses
+            console.log("Button pressed!");
+            this.addChatMessage('Game', "You pressed a button!");
+        }
+        else if (name.includes('chest') || name.includes('treasure')) {
+            // Handle treasure
+            console.log("Found treasure!");
+            this.addChatMessage('Game', "You found some treasure!");
+            
+            // Give player some currency
+            this.currency += 100;
+            document.getElementById('currencyAmount').textContent = this.currency;
+        }
+        else {
+            // Generic interaction
+            this.addChatMessage('Game', `You interacted with ${objectName}.`);
+        }
+    }
+    
+    // Start the game with the selected environment
+    async startGame() {
+        try {
+            // Hide start options
+            document.getElementById('startOptions').style.display = 'none';
+            
+            // Reset loading progress for environment loading
+            this.updateLoadingProgress(30);
+            
+            console.log(`Starting game with ${this.useEditorScene ? 'Babylon.js Editor Scene' : 'Original Environment'}`);
+            
+            // Create environment based on selection
+            await this.createEnvironment();
+            this.updateLoadingProgress(50);
+            
+            // Create player
+            this.createPlayer();
+            this.updateLoadingProgress(70);
+            
+            // Position player correctly based on environment
+            if (this.player) {
+                if (this.useEditorScene && this.environment.getSpawnPoint()) {
+                    // Use spawn point from editor scene
+                    const spawn = this.environment.getSpawnPoint();
+                    this.player.position = spawn.position.clone();
+                    this.player.position.y += CONFIG.PLAYER_HEIGHT;
+                    console.log(`Player positioned at spawn point: ${this.player.position.x}, ${this.player.position.y}, ${this.player.position.z}`);
+                } else {
+                    // For original environment, place player in a good starting position
+                    this.player.position = new BABYLON.Vector3(0, CONFIG.PLAYER_HEIGHT + 0.5, 0);
+                    console.log(`Player positioned at default location: ${this.player.position.x}, ${this.player.position.y}, ${this.player.position.z}`);
+                }
+            }
+            
+            // Initialize managers
+            this.initializeManagers();
+            this.updateLoadingProgress(90);
+            
+            // Make sure the skybox and fog are set up
+            if (this.environment) {
+                this.environment.setupEnvironmentFog();
+            }
+            
+            // Update camera to follow player properly
+            this.updateCamera();
+            
+            // Start render loop if not already started
+            if (!this.engine.isStarted) {
+                this.startRenderLoop();
+            }
+            
+            this.updateLoadingProgress(100);
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 500);
+            
+            // Add a welcome message
+            this.addChatMessage('System', `Welcome to the ${this.useEditorScene ? 'Babylon.js Editor Scene' : 'Original Virtual World'}`);
+            
+        } catch (error) {
+            console.error('Failed to start game:', error);
+            
+            // Show the error to the user
+            alert(`Failed to start game: ${error.message}. Please refresh the page.`);
         }
     }
 }

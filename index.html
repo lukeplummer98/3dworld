@@ -10,6 +10,10 @@
     <div id="loadingScreen">
         <div>Loading Virtual World...</div>
         <div id="loadingProgress" style="width:0%"></div>
+        <div id="startOptions" style="display:none; margin-top: 20px;">
+            <button id="startOriginal" class="start-btn">Start Original World</button>
+            <button id="startEditor" class="start-btn">Start Babylon.js Editor Scene</button>
+        </div>
     </div>
     <canvas id="renderCanvas"></canvas>
     
@@ -24,6 +28,7 @@
                 <button class="action-btn" id="inventoryBtn">🎒</button>
                 <button class="action-btn" id="storeBtn">🛍️</button>
                 <button class="action-btn" id="mapBtn">🗺️</button>
+                <button class="action-btn" id="toggleEnvBtn" title="Toggle Environment">🌍</button>
             </div>
         </div>
         

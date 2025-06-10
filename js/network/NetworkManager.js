@@ -11,7 +11,10 @@ export class NetworkManager {
         this.reconnectDelay = 2000;
         this.lastUpdate = Date.now();
         this.updateInterval = 50; // Send updates every 50ms
-        this.connect();
+        this.offlineMode = false; // Flag to indicate offline mode
+        
+        // Connect after a small delay to allow game to initialize
+        setTimeout(() => this.connect(), 500);
     }
 
     connect() {
@@ -60,7 +63,13 @@ export class NetworkManager {
             console.log(`Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
             setTimeout(() => this.connect(), this.reconnectDelay);
         } else {
-            console.error('Max reconnection attempts reached. Please refresh the page.');
+            console.log('Switching to offline mode - multiplayer features disabled');
+            this.offlineMode = true;
+            
+            // Notify the user that they're in offline mode
+            if (this.game && this.game.addChatMessage) {
+                this.game.addChatMessage('System', 'Server connection failed. Playing in offline mode.');
+            }
         }
     }
 
@@ -136,6 +145,11 @@ export class NetworkManager {
     }
 
     send(data) {
+        if (this.offlineMode) {
+            // In offline mode, silently ignore sending
+            return;
+        }
+        
         if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         }
