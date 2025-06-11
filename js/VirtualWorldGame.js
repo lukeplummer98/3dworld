@@ -6,6 +6,7 @@ import { CharacterBuilder } from './character/CharacterBuilder.js';
 import { RemotePlayer } from './character/RemotePlayer.js';
 import { EmoteManager } from './systems/EmoteManager.js';
 import { StoreManager } from './systems/StoreManager.js';
+import { CreativeMode } from './systems/CreativeMode.js';
 import { InputManager } from './input/InputManager.js';
 import { Environment } from './world/Environment.js';
 import { CollisionManager } from './physics/CollisionManager.js';
@@ -30,6 +31,7 @@ export class VirtualWorldGame {
         this.emoteManager = null;
         this.collisionManager = null;
         this.environment = null;
+        this.creativeMode = null;
         
         // Game state
         this.currency = 1000;
@@ -207,11 +209,22 @@ export class VirtualWorldGame {
         // Store manager
         this.storeManager = new StoreManager(this);
         
+        // Creative mode manager
+        this.creativeMode = new CreativeMode(this.scene, this.camera);
+        
         // Set up environment toggle button
         const toggleEnvBtn = document.getElementById('toggleEnvBtn');
         if (toggleEnvBtn) {
             toggleEnvBtn.addEventListener('click', () => {
                 this.toggleEnvironment();
+            });
+        }
+        
+        // Set up creative mode button
+        const creativeModeBtn = document.getElementById('creativeModeBtn');
+        if (creativeModeBtn) {
+            creativeModeBtn.addEventListener('click', () => {
+                this.toggleCreativeMode();
             });
         }
     }
@@ -249,6 +262,7 @@ export class VirtualWorldGame {
         if (this.inputManager) this.inputManager.update();
         if (this.emoteManager) this.emoteManager.update();
         if (this.storeManager) this.storeManager.update();
+        // CreativeMode doesn't need an update method as it's event-driven
         
         // Send network updates
         if (this.networkManager && this.player) {
@@ -262,6 +276,13 @@ export class VirtualWorldGame {
     
     updatePlayer() {
         if (!this.player || !this.camera) return;
+        
+        // Skip player movement updates if creative mode is enabled
+        if (this.creativeMode && this.creativeMode.isEnabled) {
+            // Just handle animations
+            this.animateCharacter(this.player);
+            return;
+        }
         
         const oldPosition = this.player.position.clone();
         
@@ -783,6 +804,11 @@ export class VirtualWorldGame {
     
     // Toggle between original environment and Babylon.js Editor scene
     async toggleEnvironment() {
+        // If creative mode is enabled, disable it first
+        if (this.creativeMode && this.creativeMode.isEnabled) {
+            this.creativeMode.setEnabled(false);
+        }
+        
         // Show loading screen
         document.getElementById('loadingScreen').style.display = 'block';
         this.updateLoadingProgress(10);
@@ -880,6 +906,11 @@ export class VirtualWorldGame {
     // Handle interactions with objects in the scene
     handleInteraction(objectName) {
         console.log(`Handling interaction with ${objectName}`);
+        
+        // Skip interactions if creative mode is enabled
+        if (this.creativeMode && this.creativeMode.isEnabled) {
+            return;
+        }
         
         // Handle different types of interactive objects
         const name = objectName.toLowerCase();
@@ -979,6 +1010,44 @@ export class VirtualWorldGame {
             
             // Show the error to the user
             alert(`Failed to start game: ${error.message}. Please refresh the page.`);
+        }
+    }
+    
+    // Toggle Creative Mode on/off
+    toggleCreativeMode() {
+        if (this.creativeMode) {
+            this.creativeMode.toggle();
+            
+            // If creative mode is now enabled, disable player movement
+            if (this.creativeMode.isEnabled) {
+                // Store current movement state
+                this._previousMovementState = {
+                    moveForward: this.player.moveForward,
+                    moveBackward: this.player.moveBackward,
+                    moveLeft: this.player.moveLeft,
+                    moveRight: this.player.moveRight
+                };
+                
+                // Disable movement
+                this.player.moveForward = false;
+                this.player.moveBackward = false;
+                this.player.moveLeft = false;
+                this.player.moveRight = false;
+                
+                // Notify player
+                this.addChatMessage('System', 'Creative Mode enabled. Movement controls disabled.');
+            } else {
+                // Restore movement state if we stored it
+                if (this._previousMovementState) {
+                    this.player.moveForward = this._previousMovementState.moveForward;
+                    this.player.moveBackward = this._previousMovementState.moveBackward;
+                    this.player.moveLeft = this._previousMovementState.moveLeft;
+                    this.player.moveRight = this._previousMovementState.moveRight;
+                }
+                
+                // Notify player
+                this.addChatMessage('System', 'Creative Mode disabled. Movement controls restored.');
+            }
         }
     }
 }

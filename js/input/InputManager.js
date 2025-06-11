@@ -73,6 +73,12 @@ export class InputManager {
                 case 'e':
                     this.player.interact();
                     break;
+                case 'c':
+                    // Toggle Creative Mode
+                    if (this.game && this.game.toggleCreativeMode) {
+                        this.game.toggleCreativeMode();
+                    }
+                    break;
             }
         };
         
