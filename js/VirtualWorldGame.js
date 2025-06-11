@@ -42,6 +42,9 @@ export class VirtualWorldGame {
         // Environment options
         this.useEditorScene = false; // Default to original environment
         
+        // Leash/Collar system
+        this.leashTargets = new Map(); // Map of playerId -> leaderId
+        
         // Initialize
         this.init();
     }
@@ -228,7 +231,19 @@ export class VirtualWorldGame {
         this.updateCamera();
         
         // Update remote players
-        this.players.forEach(player => player.update());
+        this.players.forEach(player => {
+            if (player.isLeashed && player.leashBy && this.players.has(player.leashBy)) {
+                const leader = this.players.get(player.leashBy);
+                // Pull leashed player toward leader (with leash length)
+                const leashLength = 3.0;
+                const dir = leader.character.mesh.position.subtract(player.character.mesh.position);
+                if (dir.length() > leashLength) {
+                    dir.normalize();
+                    player.character.mesh.position = leader.character.mesh.position.subtract(dir.scale(leashLength));
+                }
+            }
+            player.update();
+        });
         
         // Update managers if they exist
         if (this.inputManager) this.inputManager.update();
@@ -372,10 +387,14 @@ export class VirtualWorldGame {
         const zoomSpeed = 1.0;
         this.cameraDistance += delta * zoomSpeed;
         
+        // Default values in case they're not defined in CONFIG
+        const minDistance = this.CONFIG.CAMERA_MIN_DISTANCE || 5;
+        const maxDistance = this.CONFIG.CAMERA_MAX_DISTANCE || 20;
+        
         // Clamp to min/max values
         this.cameraDistance = Math.max(
-            this.CONFIG.CAMERA_MIN_DISTANCE, 
-            Math.min(this.CONFIG.CAMERA_MAX_DISTANCE, this.cameraDistance)
+            minDistance, 
+            Math.min(maxDistance, this.cameraDistance)
         );
         
         // Log zoom level for debugging
@@ -481,6 +500,16 @@ export class VirtualWorldGame {
         const remotePlayer = new RemotePlayer(playerData.id, this.scene, playerData, this);
         this.players.set(playerData.id, remotePlayer);
         
+        // Add click event for leading
+        if (remotePlayer.character && remotePlayer.character.mesh) {
+            remotePlayer.character.mesh.actionManager = new BABYLON.ActionManager(this.scene);
+            remotePlayer.character.mesh.actionManager.registerAction(
+                new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, () => {
+                    this.showLeadButton(playerData.id);
+                })
+            );
+        }
+        
         console.log('Added remote player:', playerData);
         
         // Ensure the player mesh is visible
@@ -538,6 +567,53 @@ export class VirtualWorldGame {
         const player = this.players.get(playerId);
         if (player) {
             player.playEmote(emote, this.emoteManager);
+        }
+    }
+    
+    /**
+     * Update a player's leash state
+     * @param {string} playerId - The ID of the player
+     * @param {boolean} isLeashed - Whether the player is leashed
+     * @param {string} leashBy - The ID of the player leading them
+     * @param {boolean} isOnAllFours - Whether the player is on all fours
+     */
+    updatePlayerLeashState(playerId, isLeashed, leashBy, isOnAllFours) {
+        console.log(`Updating player ${playerId} leash state: leashed=${isLeashed}, by=${leashBy}, allFours=${isOnAllFours}`);
+        
+        const player = this.players.get(playerId);
+        if (player) {
+            // Update player properties
+            player.isLeashed = isLeashed;
+            player.leashBy = leashBy;
+            
+            // Update visual state
+            if (isLeashed) {
+                player.showCollar();
+                player.setAllFours(isOnAllFours);
+            } else {
+                player.hideCollar();
+                player.setAllFours(false);
+            }
+            
+            // Update leash targets map
+            if (isLeashed && leashBy) {
+                this.leashTargets.set(playerId, leashBy);
+            } else {
+                this.leashTargets.delete(playerId);
+            }
+            
+            // Notify in chat
+            if (isLeashed) {
+                const leaderName = leashBy === this.networkManager.id ? 
+                    'You' : 
+                    (this.players.get(leashBy)?.playerName || 'Another player');
+                const targetName = player.playerName || `Player ${playerId.substring(0, 5)}`;
+                
+                this.addChatMessage('System', `${leaderName} ${leaderName === 'You' ? 'are' : 'is'} now leading ${targetName}.`);
+            } else {
+                const targetName = player.playerName || `Player ${playerId.substring(0, 5)}`;
+                this.addChatMessage('System', `${targetName} is no longer being led.`);
+            }
         }
     }
     
@@ -609,7 +685,84 @@ export class VirtualWorldGame {
         if (progressBar) {
             progressBar.style.width = percentage + '%';
         }
-   }
+    }
+    
+    /**
+     * Shows a lead/leash button when clicking on a player
+     * @param {string} targetId - The ID of the player to lead
+     */
+    showLeadButton(targetId) {
+        console.log(`Showing lead button for player ${targetId}`);
+        
+        // Remove any existing lead UI
+        const existingBtn = document.getElementById('leadPlayerBtn');
+        if (existingBtn) {
+            existingBtn.remove();
+        }
+        
+        // Create lead button
+        const leadBtn = document.createElement('button');
+        leadBtn.id = 'leadPlayerBtn';
+        leadBtn.textContent = 'Lead Player';
+        leadBtn.className = 'action-btn';
+        leadBtn.style.position = 'fixed';
+        leadBtn.style.top = '50%';
+        leadBtn.style.left = '50%';
+        leadBtn.style.transform = 'translate(-50%, -50%)';
+        leadBtn.style.zIndex = '1000';
+        leadBtn.style.padding = '10px 20px';
+        leadBtn.style.backgroundColor = '#ff5555';
+        leadBtn.style.color = 'white';
+        leadBtn.style.border = 'none';
+        leadBtn.style.borderRadius = '5px';
+        leadBtn.style.cursor = 'pointer';
+        
+        // Add click event
+        leadBtn.addEventListener('click', () => {
+            if (this.networkManager) {
+                console.log(`Sending lead request for player ${targetId}`);
+                this.networkManager.send(JSON.stringify({
+                    type: 'leadRequest',
+                    targetId: targetId
+                }));
+                
+                // Add to leash targets
+                this.leashTargets.set(targetId, this.networkManager.id);
+                
+                // Remove button
+                leadBtn.remove();
+            }
+        });
+        
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'X';
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.top = '-10px';
+        closeBtn.style.right = '-10px';
+        closeBtn.style.background = '#333';
+        closeBtn.style.color = 'white';
+        closeBtn.style.border = 'none';
+        closeBtn.style.borderRadius = '50%';
+        closeBtn.style.width = '25px';
+        closeBtn.style.height = '25px';
+        closeBtn.style.cursor = 'pointer';
+        
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            leadBtn.remove();
+        });
+        
+        leadBtn.appendChild(closeBtn);
+        document.body.appendChild(leadBtn);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (document.body.contains(leadBtn)) {
+                leadBtn.remove();
+            }
+        }, 5000);
+    }
     
     // Method to switch environment type
     async switchEnvironment(useEditorScene = true) {

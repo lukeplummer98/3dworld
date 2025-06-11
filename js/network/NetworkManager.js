@@ -116,6 +116,9 @@ export class NetworkManager {
             case 'chat':
                 this.handleChat(data);
                 break;
+            case 'leashUpdate':
+                this.handleLeashUpdate(data);
+                break;
             default:
                 console.warn('Unknown message type:', data.type);
         }
@@ -164,6 +167,22 @@ export class NetworkManager {
     handleChat(data) {
         if (data.message) {
             this.game.addChatMessage(data.id, data.message);
+        }
+    }
+    
+    handleLeashUpdate(data) {
+        if (data.id) {
+            console.log(`Received leash update for player ${data.id}: leashed=${data.isLeashed}, by=${data.leashBy}, allFours=${data.isOnAllFours}`);
+            
+            // Update the player's leash state
+            if (this.game && this.game.updatePlayerLeashState) {
+                this.game.updatePlayerLeashState(
+                    data.id,
+                    data.isLeashed,
+                    data.leashBy,
+                    data.isOnAllFours
+                );
+            }
         }
     }
 

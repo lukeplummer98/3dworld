@@ -5,6 +5,8 @@ export const CONFIG = {
     MOVEMENT_SPEED: 0.1,
     JUMP_FORCE: 0.2,
     CAMERA_DISTANCE: 10,
+    CAMERA_MIN_DISTANCE: 5,  // Minimum camera distance when zoomed in
+    CAMERA_MAX_DISTANCE: 20, // Maximum camera distance when zoomed out
     MOBILE_THRESHOLD: 768,
     EMOTE_DURATION: 3000,
     GRAVITY: 0.006,

@@ -269,4 +269,30 @@ export class RemotePlayer {
             }
         }
     }
+    
+    showCollar() {
+        if (!this.collarMesh) {
+            // Simple collar: red torus around neck
+            this.collarMesh = BABYLON.MeshBuilder.CreateTorus('collar', {diameter: 0.5, thickness: 0.08}, this.scene);
+            this.collarMesh.position = this.character.mesh.position.clone();
+            this.collarMesh.position.y += 1.1; // neck height
+            this.collarMesh.parent = this.character.mesh;
+            this.collarMesh.material = new BABYLON.StandardMaterial('collarMat', this.scene);
+            this.collarMesh.material.diffuseColor = new BABYLON.Color3(1,0,0);
+        }
+        this.collarMesh.isVisible = true;
+    }
+    hideCollar() {
+        if (this.collarMesh) this.collarMesh.isVisible = false;
+    }
+    setAllFours(isAllFours) {
+        // Simple pose: rotate body or lower height
+        if (isAllFours) {
+            this.character.mesh.rotation.x = Math.PI/2;
+            this.character.mesh.position.y = 0.7; // lower to ground
+        } else {
+            this.character.mesh.rotation.x = 0;
+            this.character.mesh.position.y = 1.1;
+        }
+    }
 }

@@ -28,7 +28,10 @@ wss.on('connection', (ws) => {
         y: 1.1, // Player spawn height
         z: 0,
         rotationY: 0,
-        topId: 'default-blue'
+        topId: 'default-blue',
+        isLeashed: false,
+        leashBy: null,
+        isOnAllFours: false
     });
     
     // Send initialization message with ID and existing players
@@ -85,6 +88,50 @@ wss.on('connection', (ws) => {
                 for (const client of clients) {
                     if (client !== ws && client.readyState === WebSocket.OPEN) {
                         client.send(moveMessage);
+                    }
+                }
+            } else if (parsedMessage.type === 'leadRequest') {
+                // Player ws.id wants to lead targetId
+                const targetId = parsedMessage.targetId;
+                const target = playerData.get(targetId);
+                if (target) {
+                    target.isLeashed = true;
+                    target.leashBy = ws.id;
+                    target.isOnAllFours = true;
+                    // Broadcast leash state to all
+                    const leashMsg = JSON.stringify({
+                        type: 'leashUpdate',
+                        id: targetId,
+                        isLeashed: true,
+                        leashBy: ws.id,
+                        isOnAllFours: true
+                    });
+                    for (const client of clients) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(leashMsg);
+                        }
+                    }
+                }
+            } else if (parsedMessage.type === 'unleash') {
+                // Player ws.id wants to unleash targetId
+                const targetId = parsedMessage.targetId;
+                const target = playerData.get(targetId);
+                if (target) {
+                    target.isLeashed = false;
+                    target.leashBy = null;
+                    target.isOnAllFours = false;
+                    // Broadcast leash state to all
+                    const leashMsg = JSON.stringify({
+                        type: 'leashUpdate',
+                        id: targetId,
+                        isLeashed: false,
+                        leashBy: null,
+                        isOnAllFours: false
+                    });
+                    for (const client of clients) {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(leashMsg);
+                        }
                     }
                 }
             } else if (parsedMessage.type === 'debug') {
