@@ -1,5 +1,6 @@
 // VirtualWorldGame.js - Main game class
-import { CONFIG } from './config.js';
+// Use window.CONFIG if it exists (set by external.html), otherwise use local config
+import { CONFIG as DefaultConfig } from './config.js';
 import { NetworkManager } from './network/NetworkManager.js';
 import { CharacterBuilder } from './character/CharacterBuilder.js';
 import { RemotePlayer } from './character/RemotePlayer.js';
@@ -11,6 +12,10 @@ import { CollisionManager } from './physics/CollisionManager.js';
 
 export class VirtualWorldGame {
     constructor() {
+        // Use window.CONFIG if set (for external.html), otherwise use DefaultConfig
+        this.CONFIG = window.CONFIG || DefaultConfig;
+        console.log('Using config:', window.CONFIG ? 'External Config' : 'Default Config');
+        
         this.canvas = document.getElementById('renderCanvas');
         this.engine = new BABYLON.Engine(this.canvas, true);
         this.scene = null;
@@ -28,8 +33,11 @@ export class VirtualWorldGame {
         
         // Game state
         this.currency = 1000;
-        this.isMobile = window.innerWidth <= CONFIG.MOBILE_THRESHOLD;
+        this.isMobile = window.innerWidth <= this.CONFIG.MOBILE_THRESHOLD;
         this.playerTopId = 'default-blue';
+        
+        // Camera settings
+        this.cameraDistance = this.CONFIG.CAMERA_DISTANCE;
         
         // Environment options
         this.useEditorScene = false; // Default to original environment
@@ -57,7 +65,7 @@ export class VirtualWorldGame {
             // Handle window resize
             window.addEventListener('resize', () => {
                 this.engine.resize();
-                this.isMobile = window.innerWidth <= CONFIG.MOBILE_THRESHOLD;
+                this.isMobile = window.innerWidth <= this.CONFIG.MOBILE_THRESHOLD;
             });
             
             // Show start options
@@ -144,7 +152,7 @@ export class VirtualWorldGame {
         this.player.velocity = new BABYLON.Vector3(0, 0, 0);
         this.player.isGrounded = true;
         this.player.isJumping = false;
-        this.player.groundLevel = CONFIG.GROUND_LEVEL;
+        this.player.groundLevel = this.CONFIG.GROUND_LEVEL;
         
         // Movement state
         this.player.moveForward = false;
@@ -157,7 +165,7 @@ export class VirtualWorldGame {
             if (this.player.isGrounded && !this.player.isJumping) {
                 this.player.isJumping = true;
                 this.player.isGrounded = false;
-                this.player.velocity.y = CONFIG.JUMP_FORCE;
+                this.player.velocity.y = this.CONFIG.JUMP_FORCE;
             }
         };
         
@@ -184,7 +192,7 @@ export class VirtualWorldGame {
         
         try {
             // Network manager - wrap in try-catch in case the WebSocket URL is invalid
-            this.networkManager = new NetworkManager(CONFIG.WS_URL, this);
+            this.networkManager = new NetworkManager(this.CONFIG.WS_URL, this);
         } catch (error) {
             console.warn("Could not initialize network manager:", error);
             this.addChatMessage('System', 'Playing in offline mode - multiplayer features disabled');
@@ -230,7 +238,10 @@ export class VirtualWorldGame {
         // Send network updates
         if (this.networkManager && this.player) {
             const pos = this.player.position;
-            this.networkManager.sendMove(pos.x, pos.y, pos.z, this.player.topId);
+            this.networkManager.sendMove(pos.x, pos.y, pos.z, this.playerTopId || this.player.topId);
+            
+            // Show local player position in console for debugging
+            console.log(`Local player pos: x:${pos.x.toFixed(2)}, y:${pos.y.toFixed(2)}, z:${pos.z.toFixed(2)}`);
         }
     }
     
@@ -241,7 +252,7 @@ export class VirtualWorldGame {
         
         // Apply gravity
         if (!this.player.isGrounded) {
-            this.player.velocity.y -= CONFIG.GRAVITY;
+            this.player.velocity.y -= this.CONFIG.GRAVITY;
         }
         
         // Handle horizontal movement
@@ -259,8 +270,8 @@ export class VirtualWorldGame {
             const worldDir = BABYLON.Vector3.TransformCoordinates(moveDirection, rotMat);
             
             // Set velocity
-            this.player.velocity.x = worldDir.x * CONFIG.PLAYER_SPEED;
-            this.player.velocity.z = worldDir.z * CONFIG.PLAYER_SPEED;
+            this.player.velocity.x = worldDir.x * this.CONFIG.PLAYER_SPEED;
+            this.player.velocity.z = worldDir.z * this.CONFIG.PLAYER_SPEED;
             
             // Rotate character
             const targetYaw = Math.atan2(worldDir.x, worldDir.z);
@@ -297,15 +308,15 @@ export class VirtualWorldGame {
                 // Check if on elevated ground
                 const elevatedCheck = this.collisionManager.checkCollisions(newPosition);
                 if (elevatedCheck && elevatedCheck.onElevatedGround) {
-                    this.player.groundLevel = elevatedCheck.height + CONFIG.PLAYER_HEIGHT;
+                    this.player.groundLevel = elevatedCheck.height + this.CONFIG.PLAYER_HEIGHT;
                 } else {
-                    this.player.groundLevel = CONFIG.GROUND_LEVEL;
+                    this.player.groundLevel = this.CONFIG.GROUND_LEVEL;
                 }
             }
         } else {
             // No collision manager, just update position
             this.player.position = newPosition;
-            this.player.groundLevel = CONFIG.GROUND_LEVEL;
+            this.player.groundLevel = this.CONFIG.GROUND_LEVEL;
         }
         
         // Ground collision
@@ -319,7 +330,7 @@ export class VirtualWorldGame {
         }
         
         // World bounds
-        const bounds = CONFIG.WORLD_BOUNDS;
+        const bounds = this.CONFIG.WORLD_BOUNDS;
         this.player.position.x = BABYLON.Scalar.Clamp(this.player.position.x, -bounds, bounds);
         this.player.position.z = BABYLON.Scalar.Clamp(this.player.position.z, -bounds, bounds);
         
@@ -336,9 +347,9 @@ export class VirtualWorldGame {
         
         const camYaw = this.camera.rotation.y;
         const offset = new BABYLON.Vector3(
-            Math.sin(camYaw) * CONFIG.CAMERA_DISTANCE,
+            Math.sin(camYaw) * this.cameraDistance,
             0,
-            Math.cos(camYaw) * CONFIG.CAMERA_DISTANCE
+            Math.cos(camYaw) * this.cameraDistance
         );
         
         const camTarget = this.player.position.add(offset.negate());
@@ -350,6 +361,73 @@ export class VirtualWorldGame {
             0.1
         );
         this.camera.setTarget(this.player.position);
+    }
+    
+    /**
+     * Adjusts camera zoom level based on delta value
+     * @param {number} delta - Positive for zoom out, negative for zoom in
+     */
+    zoomCamera(delta) {
+        // Calculate new camera distance
+        const zoomSpeed = 1.0;
+        this.cameraDistance += delta * zoomSpeed;
+        
+        // Clamp to min/max values
+        this.cameraDistance = Math.max(
+            this.CONFIG.CAMERA_MIN_DISTANCE, 
+            Math.min(this.CONFIG.CAMERA_MAX_DISTANCE, this.cameraDistance)
+        );
+        
+        // Log zoom level for debugging
+        console.log(`Camera zoom: ${this.cameraDistance.toFixed(1)}`);
+        
+        // Show visual feedback for zoom level
+        this.showZoomIndicator(this.cameraDistance);
+    }
+    
+    /**
+     * Shows a temporary visual indicator for zoom level
+     * @param {number} level - Current zoom level
+     */
+    showZoomIndicator(level) {
+        // Create or get the zoom indicator
+        let indicator = document.getElementById('zoomIndicator');
+        
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'zoomIndicator';
+            indicator.style.position = 'fixed';
+            indicator.style.bottom = '20px';
+            indicator.style.left = '50%';
+            indicator.style.transform = 'translateX(-50%)';
+            indicator.style.background = 'rgba(0, 0, 0, 0.5)';
+            indicator.style.color = 'white';
+            indicator.style.padding = '5px 10px';
+            indicator.style.borderRadius = '4px';
+            indicator.style.fontFamily = 'Arial, sans-serif';
+            indicator.style.fontSize = '14px';
+            indicator.style.transition = 'opacity 0.5s';
+            indicator.style.zIndex = '1000';
+            document.body.appendChild(indicator);
+        }
+        
+        // Update the indicator
+        const zoomPercent = Math.round((level - this.CONFIG.CAMERA_MIN_DISTANCE) / 
+            (this.CONFIG.CAMERA_MAX_DISTANCE - this.CONFIG.CAMERA_MIN_DISTANCE) * 100);
+        indicator.textContent = `Zoom: ${zoomPercent}%`;
+        
+        // Reset opacity and set timeout to fade out
+        indicator.style.opacity = '1';
+        
+        // Clear any existing timeout
+        if (this.zoomIndicatorTimeout) {
+            clearTimeout(this.zoomIndicatorTimeout);
+        }
+        
+        // Set timeout to fade out
+        this.zoomIndicatorTimeout = setTimeout(() => {
+            indicator.style.opacity = '0';
+        }, 1500);
     }
     
     animateCharacter(character) {
@@ -397,9 +475,19 @@ export class VirtualWorldGame {
     addRemotePlayer(playerData) {
         if (this.players.has(playerData.id)) return;
         
-        const remotePlayer = new RemotePlayer(playerData.id, this.scene, playerData);
+        // Add notification to chat
+        this.addChatMessage('System', `${playerData.name || 'Player ' + playerData.id.substring(0, 5)} joined the world.`);
+        
+        const remotePlayer = new RemotePlayer(playerData.id, this.scene, playerData, this);
         this.players.set(playerData.id, remotePlayer);
-        console.log('Added remote player:', playerData.id);
+        
+        console.log('Added remote player:', playerData);
+        
+        // Ensure the player mesh is visible
+        if (remotePlayer && remotePlayer.character) {
+            remotePlayer.character.visibility = 1;
+            remotePlayer.character.isVisible = true;
+        }
     }
     
     removeRemotePlayer(playerId) {
@@ -411,13 +499,38 @@ export class VirtualWorldGame {
         }
     }
     
+    clearRemotePlayers() {
+        // Remove all remote players
+        for (const [playerId, player] of this.players.entries()) {
+            if (player) {
+                player.dispose();
+            }
+        }
+        this.players.clear();
+        console.log('Cleared all remote players');
+    }
+    
     updateRemotePlayer(data) {
         const player = this.players.get(data.id);
         if (player) {
+            console.log(`Updating remote player ${data.id} position:`, data.x, data.y, data.z);
             player.updatePosition(data.x, data.y, data.z);
+            
+            if (data.rotationY !== undefined) {
+                player.updateRotation(data.rotationY);
+            }
+            
             if (data.topId) {
                 player.updateTopId(data.topId);
             }
+            
+            // Ensure the player remains visible
+            if (player.character) {
+                player.character.visibility = 1;
+                player.character.isVisible = true;
+            }
+        } else {
+            console.warn(`Received update for unknown player: ${data.id}`);
         }
     }
     
@@ -486,7 +599,7 @@ export class VirtualWorldGame {
             
             if (this.networkManager) {
                 const pos = this.player.position;
-                this.networkManager.sendMove(pos.x, pos.y, pos.z, this.player.topId);
+                this.networkManager.sendMove(pos.x, pos.y, pos.z, this.playerTopId || this.player.topId);
             }
         }
     }
@@ -553,7 +666,7 @@ export class VirtualWorldGame {
                 const spawn = this.environment.getSpawnPoint();
                 this.player.position = spawn.position.clone();
                 // Make sure player is above ground
-                this.player.position.y += CONFIG.PLAYER_HEIGHT;
+                this.player.position.y += this.CONFIG.PLAYER_HEIGHT;
             }
             
             // Hide loading screen
@@ -672,11 +785,11 @@ export class VirtualWorldGame {
                     // Use spawn point from editor scene
                     const spawn = this.environment.getSpawnPoint();
                     this.player.position = spawn.position.clone();
-                    this.player.position.y += CONFIG.PLAYER_HEIGHT;
+                    this.player.position.y += this.CONFIG.PLAYER_HEIGHT;
                     console.log(`Player positioned at spawn point: ${this.player.position.x}, ${this.player.position.y}, ${this.player.position.z}`);
                 } else {
                     // For original environment, place player in a good starting position
-                    this.player.position = new BABYLON.Vector3(0, CONFIG.PLAYER_HEIGHT + 0.5, 0);
+                    this.player.position = new BABYLON.Vector3(0, this.CONFIG.PLAYER_HEIGHT + 0.5, 0);
                     console.log(`Player positioned at default location: ${this.player.position.x}, ${this.player.position.y}, ${this.player.position.z}`);
                 }
             }

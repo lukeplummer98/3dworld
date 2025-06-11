@@ -1,0 +1,11 @@
+version: 2
+authtoken: 2nr53GiVrKMJZsaxoEvQZQ6AJ5y_5DUvpFACLXFKMSpVZuegn
+tunnels:
+  websocket:
+    proto: http
+    addr: 8081
+    inspect: false
+  web:
+    proto: http
+    addr: 8000
+    inspect: false

@@ -20,12 +20,24 @@ export class NetworkManager {
     connect() {
         try {
             console.log('Attempting to connect to WebSocket:', this.url);
+            
+            // Add connection status to UI
+            if (this.game && this.game.addChatMessage) {
+                this.game.addChatMessage('System', `Connecting to server at ${this.url}...`);
+            }
+            
             this.ws = new WebSocket(this.url);
             
             this.ws.onopen = () => {
                 console.log('WebSocket connected successfully');
                 this.connected = true;
                 this.reconnectAttempts = 0;
+                
+                // Show connection success message
+                if (this.game && this.game.addChatMessage) {
+                    this.game.addChatMessage('System', 'Connected to multiplayer server. Welcome!');
+                }
+                
                 // Request initialization
                 this.send({ type: 'init' });
             };
@@ -61,6 +73,12 @@ export class NetworkManager {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             console.log(`Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+            
+            // Add visible notification to the UI
+            if (this.game && this.game.addChatMessage) {
+                this.game.addChatMessage('System', `Connection lost. Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+            }
+            
             setTimeout(() => this.connect(), this.reconnectDelay);
         } else {
             console.log('Switching to offline mode - multiplayer features disabled');
@@ -69,6 +87,11 @@ export class NetworkManager {
             // Notify the user that they're in offline mode
             if (this.game && this.game.addChatMessage) {
                 this.game.addChatMessage('System', 'Server connection failed. Playing in offline mode.');
+            }
+            
+            // Clear all remote players since we're in offline mode
+            if (this.game) {
+                this.game.clearRemotePlayers();
             }
         }
     }
@@ -150,6 +173,11 @@ export class NetworkManager {
             return;
         }
         
+        // Add debug logging for movement messages
+        if (data.type === 'move') {
+            console.log(`Sending player position: x:${data.x.toFixed(2)}, y:${data.y.toFixed(2)}, z:${data.z.toFixed(2)}`);
+        }
+        
         if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         }
@@ -163,11 +191,18 @@ export class NetworkManager {
         }
         this.lastUpdate = now;
         
+        // Get the local player's rotation if available
+        let rotationY = 0;
+        if (this.game && this.game.player) {
+            rotationY = this.game.player.rotation.y;
+        }
+        
         this.send({
             type: 'move',
             x: x,
             y: y,
             z: z,
+            rotationY: rotationY,
             topId: topId,
             emote: emote
         });

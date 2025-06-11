@@ -17,9 +17,14 @@ export class InputManager {
         this.joystickCenter = { x: 0, y: 0 };
         this.joystickRadius = 35;
         
+        // For pinch zoom
+        this.touchStartDistance = 0;
+        this.isPinching = false;
+        
         this.setupKeyboard();
         this.setupMobileControls();
         this.setupActionButtons();
+        this.setupZoomControls(); // Add zoom controls
         // this.setupGamepad(); // Uncomment if gamepad support needed
     }
     
@@ -232,7 +237,65 @@ export class InputManager {
             }
         });
     }
-    
+
+    /**
+     * Sets up zoom controls for both mouse wheel and touch pinch
+     */
+    setupZoomControls() {
+        // Mouse wheel zoom
+        this.canvas.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            
+            if (!this.game) return;
+            
+            // Determine zoom direction based on wheel direction
+            const delta = event.deltaY * 0.01; // Normalize the delta
+            this.game.zoomCamera(delta);
+        });
+        
+        // Touch pinch zoom (for mobile)
+        this.canvas.addEventListener('touchstart', (event) => {
+            if (event.touches.length === 2) {
+                this.isPinching = true;
+                
+                // Calculate initial distance between the two touch points
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                this.touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+            }
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchmove', (event) => {
+            if (this.isPinching && event.touches.length === 2) {
+                event.preventDefault();
+                
+                // Calculate the current distance
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                // Calculate the pinch delta
+                const delta = (this.touchStartDistance - currentDistance) * 0.01;
+                this.game.zoomCamera(delta);
+                
+                // Update reference distance
+                this.touchStartDistance = currentDistance;
+            }
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchend', (event) => {
+            if (event.touches.length < 2) {
+                this.isPinching = false;
+            }
+        }, { passive: true });
+    }
+
     setupGamepad() {
         window.addEventListener('gamepadconnected', (evt) => {
             console.log('Gamepad connected:', evt.gamepad);

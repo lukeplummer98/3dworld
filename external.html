@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Virtual World - Mobile First 3D Game</title>
+    <title>Virtual World - Mobile First 3D Game (External)</title>
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
@@ -29,7 +29,6 @@
                 <button class="action-btn" id="storeBtn">🛍️</button>
                 <button class="action-btn" id="mapBtn">🗺️</button>
                 <button class="action-btn" id="toggleEnvBtn" title="Toggle Environment">🌍</button>
-                <span id="zoomHint" style="color: white; font-size: 0.8rem; margin-left: 10px; opacity: 0.7; transition: opacity 5s;" title="Use mouse wheel or pinch to zoom">🔍 Zoom with wheel/pinch</span>
             </div>
         </div>
         
@@ -115,10 +114,11 @@
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
     
-    <!-- Debug script for multiplayer issues -->
-    <script defer src="debug.js"></script>
-    
-    <!-- Game modules -->
-    <script type="module" src="js/main.js"></script>
+    <!-- NOTE: Using the external config for multiplayer via ngrok -->
+    <script type="module">
+        import { CONFIG } from './js/config-external.js';
+        window.CONFIG = CONFIG;
+        import './js/main.js';
+    </script>
 </body>
 </html>

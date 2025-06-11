@@ -2,9 +2,11 @@
 import { CharacterBuilder } from './CharacterBuilder.js';
 
 export class RemotePlayer {
-    constructor(id, scene, playerData) {
+    constructor(id, scene, playerData, game) {
         this.id = id;
         this.scene = scene;
+        this.game = game; // Store game reference
+        this.playerName = playerData.name || ('Player ' + id.substring(0, 5)); // Store player name
         this.targetPosition = new BABYLON.Vector3(
             playerData.x || 0,
             playerData.y || 1.1,
@@ -35,9 +37,15 @@ export class RemotePlayer {
         // Create name tag
         this.createNameTag();
         
+        // Make model visible
+        this.character.visibility = 1;
+        this.character.isVisible = true;
+        
         // Emote system
         this.currentEmote = null;
         this.emoteSymbol = null;
+        
+        console.log(`Remote player created: ${this.playerName || id} at position:`, this.targetPosition);
     }
     
     createNameTag() {
@@ -54,6 +62,7 @@ export class RemotePlayer {
         nameMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
         nameMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
         nameMat.disableLighting = true;
+        nameMat.backFaceCulling = false; // Show both sides of the nametag
         
         const texture = new BABYLON.DynamicTexture(
             'nameTexture' + this.id,
@@ -64,37 +73,74 @@ export class RemotePlayer {
         
         const ctx = texture.getContext();
         ctx.clearRect(0, 0, 256, 64);
-        ctx.font = '24px Arial';
+        
+        // Add background for better visibility
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, 256, 64);
+        
+        // Draw name with outline for better visibility
+        ctx.font = 'bold 24px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        
+        // Text outline
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeText(this.playerName || 'Player ' + this.id.substring(0, 5), 128, 32);
+        
+        // Text fill
         ctx.fillStyle = 'white';
-        ctx.fillText('Player ' + this.id, 128, 32);
+        ctx.fillText(this.playerName || 'Player ' + this.id.substring(0, 5), 128, 32);
+        
         texture.update();
         
         nameMat.diffuseTexture = texture;
         nameTag.material = nameMat;
         
         this.nameTag = nameTag;
+        
+        // Add a notification for new player
+        if (this.game && this.game.addChatMessage) {
+            this.game.addChatMessage('System', `${this.playerName || 'Player ' + this.id.substring(0, 5)} joined the world.`);
+        }
     }
     
     updatePosition(x, y, z) {
+        // Store previous position for calculating direction
+        const prevPosition = this.character.position.clone();
+        
+        // Create new target position
         this.targetPosition = new BABYLON.Vector3(x, y, z);
         
-        // Check if moving
-        const distance = BABYLON.Vector3.Distance(this.character.position, this.targetPosition);
-        this.isMoving = distance > 0.1;
+        // Calculate distance to determine if moving
+        const distance = BABYLON.Vector3.Distance(prevPosition, this.targetPosition);
+        this.isMoving = distance > 0.01;
+        
+        // Update position directly for immediate effect
+        this.character.position = this.targetPosition.clone();
+        
+        // Make sure character is visible
+        this.character.visibility = 1;
+        this.character.isVisible = true;
         
         // Update rotation to face movement direction
         if (this.isMoving) {
-            const direction = this.targetPosition.subtract(this.character.position);
-            if (direction.length() > 0.1) {
+            const direction = this.targetPosition.subtract(prevPosition);
+            if (direction.length() > 0.01) {
                 const targetYaw = Math.atan2(direction.x, direction.z);
-                this.character.rotation.y = BABYLON.Scalar.LerpAngle(
-                    this.character.rotation.y,
-                    targetYaw,
-                    0.15
-                );
+                // Use direct rotation update for more immediate effect
+                this.character.rotation.y = targetYaw;
             }
+        }
+        
+        // Log position update for debugging
+        console.log(`Remote player ${this.id} moved to:`, x.toFixed(2), y.toFixed(2), z.toFixed(2));
+    }
+    
+    updateRotation(rotationY) {
+        if (this.character) {
+            // Update rotation directly for immediate effect
+            this.character.rotation.y = rotationY;
         }
     }
     
@@ -163,14 +209,64 @@ export class RemotePlayer {
     }
     
     dispose() {
+        try {
+            // Dispose of the character mesh
+            if (this.character) {
+                this.character.dispose(false, true);
+            }
+            
+            // Dispose of the name tag
+            if (this.nameTag) {
+                if (this.nameTag.material) {
+                    if (this.nameTag.material.diffuseTexture) {
+                        this.nameTag.material.diffuseTexture.dispose();
+                    }
+                    this.nameTag.material.dispose();
+                }
+                this.nameTag.dispose();
+            }
+            
+            // Dispose of emote symbol if exists
+            if (this.emoteSymbol) {
+                if (this.emoteSymbol.material) {
+                    this.emoteSymbol.material.dispose();
+                }
+                this.emoteSymbol.dispose();
+            }
+            
+            console.log(`RemotePlayer ${this.id} disposed`);
+        } catch (e) {
+            console.error(`Error disposing RemotePlayer ${this.id}:`, e);
+        }
+    }
+    
+    // Regular update method called each frame
+    update() {
+        // Ensure character is visible
         if (this.character) {
-            this.character.dispose();
-        }
-        if (this.nameTag) {
-            this.nameTag.dispose();
-        }
-        if (this.emoteSymbol) {
-            this.emoteSymbol.dispose();
+            this.character.visibility = 1;
+            this.character.isVisible = true;
+            
+            // Ensure nametag is visible and facing camera
+            if (this.nameTag) {
+                this.nameTag.visibility = 1;
+                this.nameTag.isVisible = true;
+                // Make sure billboard mode is working
+                this.nameTag.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            }
+            
+            // Handle animation if needed
+            if (this.isMoving) {
+                // Simple animation for moving players
+                const t = performance.now() * 0.005;
+                const legSwing = Math.sin(t * 8) * 0.8;
+                const armSwing = Math.sin(t * 8) * 0.4;
+                
+                if (this.character.leftLeg) this.character.leftLeg.rotation.x = legSwing;
+                if (this.character.rightLeg) this.character.rightLeg.rotation.x = -legSwing;
+                if (this.character.leftArm) this.character.leftArm.rotation.x = -armSwing * 0.7;
+                if (this.character.rightArm) this.character.rightArm.rotation.x = armSwing * 0.7;
+            }
         }
     }
 }
